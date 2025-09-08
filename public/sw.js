@@ -1,4 +1,4 @@
-const CACHE_NAME = 'melody-player-cache-v3';
+const CACHE_NAME = 'melody-player-cache-v4';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -23,12 +23,6 @@ const urlsToCache = [
   '/components/FeedbackModal.tsx',
   '/components/TypingBenefit.tsx',
   '/components/InstallPWAButton.tsx',
-  
-  // Icons
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-maskable-192.png',
-  '/icons/icon-maskable-512.png',
 
   // Fonts (Example: add your font files here in the future)
   // '/fonts/YourFont-Regular.woff2',
