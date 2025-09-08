@@ -1,0 +1,5 @@
+{
+  "name": "Relaxing Melody",
+  "description": "Relaxing Melody that generates and plays relaxing melodies, solfeggio frequencies, and binaural beats for goals like focus, relaxation, and sleep. Features a background sound mixer and media controls for the lock screen and notification center.",
+  "requestFramePermissions": []
+}
