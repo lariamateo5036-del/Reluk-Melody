@@ -1,20 +1,17 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { translations, naturalSounds } from '../constants';
 
 interface MixerSheetProps {
     currentLanguage: string;
     activeMixers: Set<string>;
-    mixerVolumes: { [key: string]: number };
     onToggleMixer: (id: string) => void;
     onContinue: () => void;
     onMasterVolumeChange: (value: number) => void;
     onMainVolumeChange: (value: number) => void;
-    onMixerVolumeChange: (id: string, value: number) => void;
 }
 
-const MixerSheet: React.FC<MixerSheetProps> = ({ currentLanguage, activeMixers, mixerVolumes, onToggleMixer, onContinue, onMasterVolumeChange, onMainVolumeChange, onMixerVolumeChange }) => {
+const MixerSheet: React.FC<MixerSheetProps> = ({ currentLanguage, activeMixers, onToggleMixer, onContinue, onMasterVolumeChange, onMainVolumeChange }) => {
     const T = (key: string) => translations[currentLanguage]?.[key] || translations.en[key];
-    const activeSoundDetails = useMemo(() => naturalSounds.filter(sound => activeMixers.has(sound.id)), [activeMixers]);
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[100] flex items-center justify-center p-4">
@@ -35,26 +32,6 @@ const MixerSheet: React.FC<MixerSheetProps> = ({ currentLanguage, activeMixers, 
                             </button>
                         ))}
                     </div>
-
-                    {activeSoundDetails.length > 0 && (
-                        <div className="space-y-3 pt-4 border-t border-gray-700">
-                             <h4 className="text-sm font-bold text-gray-400">Active Sounds Volume</h4>
-                            {activeSoundDetails.map(sound => (
-                                <div key={sound.id} className="flex items-center gap-3">
-                                    <span className="text-sm w-16 truncate">{sound.name[currentLanguage] || sound.name.en}</span>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="100"
-                                        value={mixerVolumes[sound.id] || 75}
-                                        onChange={e => onMixerVolumeChange(sound.id, parseInt(e.target.value, 10))}
-                                        className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-thumb"
-                                        aria-label={`${sound.name[currentLanguage] || sound.name.en} volume`}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
 
                 <div className="space-y-3 pt-4 border-t border-gray-700 flex-shrink-0">

@@ -29,7 +29,6 @@ export default function App() {
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   
   const [activeMixers, setActiveMixers] = useState(new Set<string>());
-  const [mixerVolumes, setMixerVolumes] = useState<{ [key: string]: number }>({});
   
   const [sleepTimerEndTime, setSleepTimerEndTime] = useState<number | null>(null);
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
@@ -121,7 +120,6 @@ export default function App() {
       if (isPlaying) setIsPlaying(false);
       audioService.stopPlayback(true);
       setActiveMixers(new Set());
-      setMixerVolumes({});
       setSleepTimerEndTime(null);
       if (sleepTimerTimeoutRef.current) clearTimeout(sleepTimerTimeoutRef.current);
       setOnboardingStep('goal');
@@ -141,23 +139,8 @@ export default function App() {
         isNowActive ? newSet.add(id) : newSet.delete(id);
         return newSet;
     });
-    setMixerVolumes(prev => {
-        const newVolumes = { ...prev };
-        if (isNowActive) {
-            newVolumes[id] = 75; // Default volume
-            audioService.setMixerSoundVolume(id, 75);
-        } else {
-            delete newVolumes[id];
-        }
-        return newVolumes;
-    });
   };
   
-  const handleMixerVolumeChange = (id: string, value: number) => {
-    setMixerVolumes(prev => ({ ...prev, [id]: value }));
-    audioService.setMixerSoundVolume(id, value);
-  };
-
   const handleMainVolumeChange = (value: number) => {
     audioService.setMainVolume(value);
   };
@@ -241,12 +224,10 @@ export default function App() {
           <MixerSheet 
             currentLanguage={currentLanguage}
             activeMixers={activeMixers}
-            mixerVolumes={mixerVolumes}
             onToggleMixer={handleToggleMixer}
             onContinue={handleFinishOnboarding}
             onMasterVolumeChange={val => audioService.setMixerMasterVolume(val)}
             onMainVolumeChange={handleMainVolumeChange}
-            onMixerVolumeChange={handleMixerVolumeChange}
           />
       )}
 

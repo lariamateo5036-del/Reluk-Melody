@@ -1,4 +1,5 @@
 
+
 import { solfeggioFrequencies, binauralBeats, naturalSounds } from '../constants';
 import type { PlaybackMode, NaturalSound, SolfeggioFrequency, BinauralBeat } from '../types';
 
@@ -8,7 +9,6 @@ const PHI = (1 + Math.sqrt(5)) / 2;
 
 class AudioService {
     private nodes: any = {};
-    // Refactored scheduler to use Tone.Loop for robust, dynamic timing.
     private scheduler: any = {
         loop: null,
         phiScale: [],
@@ -16,10 +16,11 @@ class AudioService {
         stepIndex: 0,
         tempo: 68
     };
-    private activeMixers: { [key: string]: { components: any[], volumeNode: any } } = {};
+    private activeMixers: { [key: string]: { player: any, volumeNode: any } } = {};
     private isInitialized = false;
     private audioElement: HTMLAudioElement | null = null;
     private isPlaying = false;
+    private mixerBufferCache: Map<string, AudioBuffer> = new Map();
 
     public async init(audioElement: HTMLAudioElement) {
         if (this.isInitialized || !audioElement) return;
@@ -31,11 +32,9 @@ class AudioService {
 
         await Tone.start();
         
-        // Create a MediaStream destination to route all audio through the HTMLAudioElement
         const mediaStreamDestination = Tone.context.createMediaStreamDestination();
         this.audioElement.srcObject = mediaStreamDestination.stream;
-        this.audioElement.muted = false; // Ensure the element is not muted
-        // FIX: Set playsInline property for better mobile playback, casting to any to bypass TS error.
+        this.audioElement.muted = false;
         (this.audioElement as any).playsInline = true;
 
         const masterGain = new Tone.Volume(-9).connect(mediaStreamDestination);
@@ -78,7 +77,7 @@ class AudioService {
 
     public startPlayback(mode: PlaybackMode, index: number) {
         if (!this.isInitialized) return;
-        this.stopPlayback(false); // Stop previous track before starting a new one
+        this.stopPlayback(false); 
         this.isPlaying = true;
 
         const baseFreqData = mode === 'solfeggio' ? solfeggioFrequencies[index] : binauralBeats[index];
@@ -102,8 +101,6 @@ class AudioService {
             this.nodes.mainSynth.volume.value = -9;
         }
 
-        // Refactored scheduler using Tone.Loop for dynamic, resilient scheduling.
-        // This prevents a backlog of notes when resuming from background.
         this.scheduler.loop = new Tone.Loop(time => {
             const spb = 60 / this.scheduler.tempo;
             const phiLens = [1, PHI / 2, 1 / PHI];
@@ -115,12 +112,10 @@ class AudioService {
             
             this.scheduleNote(time, freq, duration, preset);
             
-            // Update the interval for the next loop iteration. This dynamic interval
-            // is the key to handling variable note lengths correctly.
             if (this.scheduler.loop) {
                 this.scheduler.loop.interval = duration;
             }
-        }, 1).start(0.1); // Start with a default interval; it will be updated immediately.
+        }, 1).start(0.1);
 
         if (Tone.Transport.state !== 'started') {
             Tone.Transport.start();
@@ -155,24 +150,33 @@ class AudioService {
             this.turnOffAllMixers();
         }
     }
-    
-    private createMixerNode(sound: NaturalSound) {
-        if (!this.nodes.mixerMasterVolume) return { components: [], volumeNode: null };
-        
-        let components: any[] = [];
-        const volumeNode = new Tone.Volume(0).connect(this.nodes.mixerMasterVolume);
-        components.push(volumeNode);
 
-        switch (sound.id) {
-             case 'white_noise': case 'pink_noise': case 'brown_noise': { const n=new Tone.Noise(sound.noise_type).start(); n.volume.value=-18; n.connect(volumeNode); components.push(n); break; }
-             case 'rain': { const rb=new Tone.Noise("pink").start(); const bf=new Tone.Filter(1500,"lowpass").connect(volumeNode); rb.connect(bf); rb.volume.value=-20; const ds=new Tone.MembraneSynth({pitchDecay:0.01,octaves:6,envelope:{attack:0.001,decay:0.15,sustain:0,release:0.2}}).connect(volumeNode); ds.volume.value=-18; const dp=new Tone.Pattern((t: any)=>{ds.triggerAttackRelease(`C${Math.floor(Math.random()*3)+5}`,'32n',t,Math.random()*0.4+0.6);},["8n","16n","8n","16n","16n"],"random").start(0); if(Tone.Transport.state!=='started')Tone.Transport.start(); components.push(rb,bf,ds,dp); break;}
-             case 'ocean_waves': { const n=new Tone.Noise("pink").start(); const f=new Tone.Filter(800,'lowpass'); const l=new Tone.LFO("0.2Hz",-28,-15).start().connect(n.volume); n.connect(f).connect(volumeNode); components.push(n,l,f); break;}
-             case 'wind': { const wn=new Tone.Noise("brown").start(); wn.volume.value=-22; const wf=new Tone.AutoFilter({frequency:"4n",baseFrequency:300,octaves:5}).connect(volumeNode).start(); wn.connect(wf); if(Tone.Transport.state!=='started')Tone.Transport.start(); components.push(wn,wf); break;}
-             case 'fire': { const r=new Tone.Noise("brown").start(); r.volume.value=-26; const rf=new Tone.Filter(400,"lowpass").connect(volumeNode); r.connect(rf); const c=new Tone.Noise("white").start(); const ce=new Tone.AmplitudeEnvelope({attack:0.005,decay:0.08,sustain:0,release:0.1}).connect(volumeNode); c.connect(ce); c.volume.value=-12; const cl=new Tone.Loop((t: any)=>{ce.triggerAttackRelease('32n',t,Math.random());},"16n").start(0); cl.humanize=true; if(Tone.Transport.state!=='started')Tone.Transport.start(); components.push(r,rf,c,ce,cl); break;}
-             case 'stream': { const sn=new Tone.Noise('white').start(); sn.volume.value=-20; const sf=new Tone.AutoFilter({frequency:"2n",type:"sine",depth:0.8,baseFrequency:1500,octaves:2.5,filter:{type:"bandpass",Q:3}}).connect(volumeNode).start(); sn.connect(sf); if(Tone.Transport.state!=='started')Tone.Transport.start(); components.push(sn,sf); break;}
-             case 'tuning_forks_spatial': { const mf=new Tone.Filter(10000,"lowpass").connect(volumeNode); volumeNode.volume.value=-9; const s={oscillator:{type:'sine',partials:[1,0,0.1,0,0.05]},envelope:{attack:0.1,decay:6,sustain:0.1,release:8}}; const p1=new Tone.Panner3D().connect(mf); const p2=new Tone.Panner3D().connect(mf); const s1=new Tone.Synth(s).connect(p1); const s2=new Tone.Synth(s).connect(p2); const ml=new Tone.Loop((t: any)=>{p1.positionX.rampTo((Math.random()-0.5)*3,0.5);p2.positionX.rampTo((Math.random()-0.5)*3,0.5);},"0.5s").start(0); const sl=new Tone.Loop((t: any)=>{s1.triggerAttack(440,t); s2.triggerAttack(441.5,t);},"25s").start(0); sl.humanize=true; components.push(mf,p1,p2,s1,s2,ml,sl); if(Tone.Transport.state!=='started')Tone.Transport.start(); break;}
+    private async _renderSoundToBuffer(sound: NaturalSound): Promise<AudioBuffer> {
+        const DURATION = 15;
+        const buffer = await Tone.Offline(async () => {
+            switch (sound.id) {
+                case 'white_noise': case 'pink_noise': case 'brown_noise': { new Tone.Noise(sound.noise_type).toDestination().start(0).volume.value = -18; break; }
+                case 'rain': { const r=new Tone.Noise("pink").toDestination(); r.volume.value=-20; const f=new Tone.Filter(1500,"lowpass").connect(r.destination); r.connect(f); r.start(0); const d=new Tone.MembraneSynth({pitchDecay:0.01,octaves:6,envelope:{attack:0.001,decay:0.15,sustain:0,release:0.2}}).toDestination(); d.volume.value=-18; new Tone.Pattern((t,n)=>{d.triggerAttackRelease(n,'32n',t,Math.random()*.4+.6);},["C5","C6","C5","C6","C6"],"random").start(0).playbackRate=1.5; Tone.Transport.start(); break; }
+                case 'ocean_waves': { const n=new Tone.Noise("pink").toDestination(); new Tone.Filter(800,'lowpass').connect(n.destination); new Tone.LFO("0.2Hz",-28,-15).start().connect(n.volume); n.start(0); break; }
+                case 'wind': { const n=new Tone.Noise("brown").toDestination(); n.volume.value=-22; const f=new Tone.AutoFilter({frequency:"4n",baseFrequency:300,octaves:5}).toDestination().start(); n.connect(f); n.start(0); Tone.Transport.start(); break; }
+                case 'fire': { const r=new Tone.Noise("brown").toDestination(); r.volume.value=-26; new Tone.Filter(400,"lowpass").connect(r.destination); r.start(0); const c=new Tone.Noise("white"); c.volume.value=-12; const e=new Tone.AmplitudeEnvelope({attack:0.005,decay:0.08,sustain:0,release:0.1}).toDestination(); c.connect(e); new Tone.Loop(t=>{e.triggerAttackRelease('32n',t,Math.random());},"16n").start(0).humanize=true; c.start(0); Tone.Transport.start(); break; }
+                case 'stream': { const n=new Tone.Noise('white').toDestination(); n.volume.value=-20; const f=new Tone.AutoFilter({frequency:"2n",type:"sine",depth:0.8,baseFrequency:1500,octaves:2.5,filter:{type:"bandpass",Q:3}}).toDestination().start(); n.connect(f); n.start(0); Tone.Transport.start(); break; }
+                case 'tuning_forks_spatial': { const f=new Tone.Filter(10000,"lowpass").toDestination(); const s={oscillator:{type:'sine',partials:[1,0,0.1,0,0.05]},envelope:{attack:0.1,decay:6,sustain:0.1,release:8}}; const p1=new Tone.Panner(-0.8).connect(f); const p2=new Tone.Panner(0.8).connect(f); const s1=new Tone.Synth(s).connect(p1); const s2=new Tone.Synth(s).connect(p2); new Tone.Loop(t=>{s1.triggerAttack(440,t);s2.triggerAttack(441.5,t);},"25s").start(0).humanize=true; Tone.Transport.start(); break; }
+                case 'forest': { const w=new Tone.Noise("brown").toDestination(); w.volume.value=-30; const wf=new Tone.AutoFilter("8n",200,4).toDestination().start(); w.connect(wf); w.start(0); const c=new Tone.Noise("white"); c.volume.value=-25; const e=new Tone.AmplitudeEnvelope({attack:0.001,decay:0.04,sustain:0,release:0.05}).toDestination(); c.connect(e); new Tone.Loop(t=>{e.triggerAttackRelease('64n',t,Math.random()*.5+.5);},"8n").start(0).humanize="32n"; c.start(0); Tone.Transport.start(); break; }
+                case 'gentle_stream': { const n=new Tone.Noise('pink').toDestination(); n.volume.value=-22; const f=new Tone.Filter(1600, "lowpass").toDestination(); n.connect(f); n.start(0); break; }
+            }
+        }, DURATION);
+        if (Tone.Transport.state === 'started') { Tone.Transport.stop(); Tone.Transport.cancel(); }
+        return buffer;
+    }
+
+    private async _getOrRenderSound(sound: NaturalSound): Promise<AudioBuffer> {
+        if (this.mixerBufferCache.has(sound.id)) {
+            return this.mixerBufferCache.get(sound.id)!;
         }
-        return { components, volumeNode };
+        const buffer = await this._renderSoundToBuffer(sound);
+        this.mixerBufferCache.set(sound.id, buffer);
+        return buffer;
     }
 
     public async toggleMixer(soundId: string): Promise<boolean> {
@@ -182,17 +186,29 @@ class AudioService {
         if (!sound) return false;
 
         if (this.activeMixers[soundId]) {
-            this.activeMixers[soundId].components.forEach(c => c.dispose());
+            this.activeMixers[soundId].player.dispose();
+            this.activeMixers[soundId].volumeNode.dispose();
             delete this.activeMixers[soundId];
             return false;
         } else {
-            this.activeMixers[soundId] = this.createMixerNode(sound);
+            const buffer = await this._getOrRenderSound(sound);
+            if (!buffer) return false;
+
+            const volumeNode = new Tone.Volume(0).connect(this.nodes.mixerMasterVolume);
+            const player = new Tone.Player(buffer).connect(volumeNode);
+            player.loop = true;
+            player.start();
+            
+            this.activeMixers[soundId] = { player, volumeNode };
             return true;
         }
     }
 
     public turnOffAllMixers() {
-        Object.values(this.activeMixers).forEach(({ components }) => components.forEach(c => c.dispose()));
+        Object.values(this.activeMixers).forEach(({ player, volumeNode }) => {
+            player.dispose();
+            volumeNode.dispose();
+        });
         this.activeMixers = {};
         if (typeof Tone !== 'undefined' && Tone.Transport.state === 'started' && !this.isPlaying) {
              Tone.Transport.stop();
@@ -201,7 +217,6 @@ class AudioService {
 
     public setMixerMasterVolume(value: number) {
         if (this.nodes.mixerMasterVolume) {
-            // Converts 0-100 slider to a more logarithmic -35dB to 0dB range
             const db = (value / 100) * 35 - 35;
             this.nodes.mixerMasterVolume.volume.value = db;
         }
@@ -209,17 +224,8 @@ class AudioService {
 
     public setMainVolume(value: number) {
         if (this.nodes.masterGain) {
-            // Converts 0-100 slider to a logarithmic -40dB to 0dB range
             const db = (value / 100) * 40 - 40;
             this.nodes.masterGain.volume.value = db;
-        }
-    }
-    
-    public setMixerSoundVolume(soundId: string, value: number) {
-        if (this.activeMixers[soundId] && this.activeMixers[soundId].volumeNode) {
-            // Converts 0-100 slider to a more logarithmic -30dB to 6dB range
-            const db = (value / 100) * 36 - 30;
-            this.activeMixers[soundId].volumeNode.volume.value = db;
         }
     }
 }

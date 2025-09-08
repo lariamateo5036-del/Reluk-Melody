@@ -70,7 +70,8 @@ const originalIcons: { [key: string]: string } = {
   wind: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
   fire: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.657 7.343A8 8 0 0117.657 18.657z" /><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 16.121A3 3 0 1014.12 11.88a3 3 0 00-4.242 4.242z" /></svg>`,
   stream: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7" /></svg>`,
-  tuning_forks_spatial: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6.5a3.5 3.5 0 117 0V19M12 19v-2" /></svg>`
+  tuning_forks_spatial: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6.5a3.5 3.5 0 117 0V19M12 19v-2" /></svg>`,
+  forest: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21V8m-4 4l4-4 4 4m-8 8h8" /></svg>`
 };
 
 export const naturalSounds: NaturalSound[] = [
@@ -83,4 +84,6 @@ export const naturalSounds: NaturalSound[] = [
   { id: "fire", type: "fire", icon: originalIcons.fire, name: { vi: "Lửa", en: "Fire" } },
   { id: "stream", type: "filtered_noise", noise_type: "white", filter_freq: 2000, icon: originalIcons.stream, name: { vi: "Suối", en: "Stream" } },
   { id: "tuning_forks_spatial", type: "tuning_forks_spatial", icon: originalIcons.tuning_forks_spatial, name: { vi: "Âm Thoa 3D", en: "Spatial Forks" } },
+  { id: "forest", type: "forest", icon: originalIcons.forest, name: { vi: "Rừng rậm", en: "Forest", zh: "森林", ja: "森林", ko: "숲", fr: "Forêt", de: "Wald", es: "Bosque" } },
+  { id: "gentle_stream", type: "filtered_noise", noise_type: "pink", filter_freq: 1600, icon: originalIcons.stream, name: { vi: "Suối nhẹ", en: "Gentle Stream", zh: "潺潺溪流", ja: "穏やかな小川", ko: "부드러운 시냇물", fr: "Doux Ruisseau", de: "Sanfter Bach", es: "Arroyo Suave" } },
 ];
