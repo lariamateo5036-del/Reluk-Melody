@@ -20,17 +20,28 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, currentL
   };
 
   const handleShare = async () => {
-    const shareData = {
+    const shareData: { title: string; text: string; url?: string } = {
       title: T('share_message_title'),
       text: T('share_message_text'),
-      url: window.location.href,
     };
+
+    // The URL must be valid. In some sandboxed environments, window.location.href can be invalid.
+    // We use window.location.origin as a safer base URL and only include it if it's a valid HTTP/HTTPS URL.
+    if (window.location.origin && window.location.origin.startsWith('http')) {
+      shareData.url = window.location.origin;
+    }
 
     if (navigator.share) {
       try {
         await navigator.share(shareData);
       } catch (err) {
-        console.error('Share failed:', err);
+        // The user canceling the share dialog is a common action, not a bug.
+        // This action rejects the promise with an AbortError DOMException. We can safely ignore it.
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          console.log('Share action was canceled by the user.');
+        } else {
+          console.error('Share failed:', err);
+        }
       }
     } else {
       // Fallback for browsers that don't support Web Share API
