@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { PlaybackMode } from './types';
 import { goals, solfeggioFrequencies, binauralBeats } from './constants';
@@ -16,9 +17,14 @@ import { useMediaSession } from './hooks/useMediaSession';
 import { useAudioPlayback } from './hooks/useAudioPlayback';
 
 export default function App() {
-  const [currentLanguage, setCurrentLanguage] = useState('en');
+  // FIX: Initialize state from localStorage to prevent UI flicker on load.
+  // This ensures the correct screen (onboarding or player) is shown immediately.
+  const [currentLanguage, setCurrentLanguage] = useState(() => localStorage.getItem('userLanguage') || 'en');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState<'goal' | 'timer' | 'mixer' | 'player'>('player');
+  const [onboardingStep, setOnboardingStep] = useState<'goal' | 'timer' | 'mixer' | 'player'>(() => {
+    const onboarded = localStorage.getItem('isOnboarded') === 'true';
+    return onboarded ? 'player' : 'goal';
+  });
 
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   
@@ -34,7 +40,7 @@ export default function App() {
     return lastTrackIndex ? parseInt(lastTrackIndex, 10) : 4; // Default to 432 Hz
   });
 
-  const silentAudioRef = useRef<HTMLAudioElement>(null);
+  const audioOutputRef = useRef<HTMLAudioElement>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   
@@ -55,13 +61,14 @@ export default function App() {
   const currentTrack = useMemo(() => unifiedTrackList[unifiedIndex], [unifiedTrackList, unifiedIndex]);
   const { showUI } = useUITimer(onboardingStep === 'player');
   
+  // FIX: Refactored useEffect hooks to separate concerns.
+  // This hook handles setting the document language attribute.
   useEffect(() => {
-    const onboarded = localStorage.getItem('isOnboarded') === 'true';
-    const lang = localStorage.getItem('userLanguage') || 'en';
-    setOnboardingStep(onboarded ? 'player' : 'goal');
-    setCurrentLanguage(lang);
-    document.documentElement.lang = lang;
+    document.documentElement.lang = currentLanguage;
+  }, [currentLanguage]);
 
+  // This hook handles the PWA installation prompt.
+  useEffect(() => {
     const handleInstallPrompt = (e: Event) => {
         e.preventDefault();
         setInstallPrompt(e);
@@ -80,7 +87,7 @@ export default function App() {
     });
   }, [unifiedTrackList.length]);
 
-  useAudioPlayback({ isPlaying, currentTrack, silentAudioRef });
+  useAudioPlayback({ isPlaying, currentTrack, audioOutputRef });
   useMediaSession({ 
       currentTrack, 
       currentLanguage, 
@@ -112,7 +119,7 @@ export default function App() {
 
   const handleReconfigure = useCallback(() => {
       if (isPlaying) setIsPlaying(false);
-      audioService.stop(true);
+      audioService.stopPlayback(true);
       setActiveMixers(new Set());
       setMixerVolumes({});
       setSleepTimerEndTime(null);
@@ -269,8 +276,8 @@ export default function App() {
         />}
       </div>
 
-      {/* Silent audio for background playback on iOS */}
-      <audio ref={silentAudioRef} loop src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"></audio>
+      {/* This audio element is now the main output for all Tone.js audio */}
+      <audio ref={audioOutputRef} playsInline />
     </>
   );
 }

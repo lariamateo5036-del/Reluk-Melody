@@ -1,26 +1,46 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import audioService from '../services/audioService';
 
 interface UseAudioPlaybackProps {
   isPlaying: boolean;
   currentTrack: any;
-  silentAudioRef: React.RefObject<HTMLAudioElement>;
+  audioOutputRef: React.RefObject<HTMLAudioElement>;
 }
 
-export const useAudioPlayback = ({ isPlaying, currentTrack, silentAudioRef }: UseAudioPlaybackProps) => {
+export const useAudioPlayback = ({ isPlaying, currentTrack, audioOutputRef }: UseAudioPlaybackProps) => {
+  const isAudioInitialized = useRef(false);
+
   useEffect(() => {
-    if (isPlaying && currentTrack) {
-      audioService.start(currentTrack.type, currentTrack.originalIndex);
-      silentAudioRef.current?.play().catch(e => console.warn("Silent audio playback failed", e));
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'playing';
+    const audioEl = audioOutputRef.current;
+    if (!audioEl || !currentTrack) return;
+
+    const managePlayback = async () => {
+      try {
+        if (isPlaying) {
+          if (!isAudioInitialized.current) {
+            await audioService.init(audioEl);
+            isAudioInitialized.current = true;
+          }
+          audioService.startPlayback(currentTrack.type, currentTrack.originalIndex);
+          await audioEl.play();
+
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'playing';
+          }
+        } else {
+          audioService.stopPlayback(false); // Stop main synth but leave mixers active
+          audioEl.pause();
+
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'paused';
+          }
+        }
+      } catch (e) {
+        console.error("Audio playback management failed:", e);
       }
-    } else {
-      audioService.stop(false); // Stop main synth but leave mixers active
-      silentAudioRef.current?.pause();
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'paused';
-      }
-    }
-  }, [isPlaying, currentTrack, silentAudioRef]);
+    };
+
+    managePlayback();
+    
+  }, [isPlaying, currentTrack, audioOutputRef]);
 };

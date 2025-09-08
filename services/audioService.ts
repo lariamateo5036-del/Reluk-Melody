@@ -1,3 +1,4 @@
+
 import { solfeggioFrequencies, binauralBeats, naturalSounds } from '../constants';
 import type { PlaybackMode, NaturalSound, SolfeggioFrequency, BinauralBeat } from '../types';
 
@@ -10,14 +11,27 @@ class AudioService {
     private scheduler: any = { id: null, nextNoteTime: 0, stepIndex: 0, tempo: 68 };
     private activeMixers: { [key: string]: { components: any[], volumeNode: any } } = {};
     private isInitialized = false;
+    private audioElement: HTMLAudioElement | null = null;
+    private isPlaying = false;
 
-    private async init() {
-        if (this.isInitialized) return;
+    public async init(audioElement: HTMLAudioElement) {
+        if (this.isInitialized || !audioElement) return;
+        this.audioElement = audioElement;
+
         if (typeof Tone === 'undefined' || (typeof Tone.start !== 'function' && Tone.context.state !== 'running')) {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
+
         await Tone.start();
-        const masterGain = new Tone.Volume(-9).toDestination();
+        
+        // Create a MediaStream destination to route all audio through the HTMLAudioElement
+        const mediaStreamDestination = Tone.context.createMediaStreamDestination();
+        this.audioElement.srcObject = mediaStreamDestination.stream;
+        this.audioElement.muted = false; // Ensure the element is not muted
+        // FIX: Set playsInline property for better mobile playback, casting to any to bypass TS error.
+        (this.audioElement as any).playsInline = true;
+
+        const masterGain = new Tone.Volume(-9).connect(mediaStreamDestination);
         const mainReverb = new Tone.Reverb({ decay: 10, wet: 0.5 }).connect(masterGain);
         const mainFilter = new Tone.Filter(9000, "lowpass").connect(mainReverb);
         const mainPanner = new Tone.AutoPanner("2n").connect(mainFilter).start();
@@ -30,7 +44,20 @@ class AudioService {
 
         this.nodes = { masterGain, mainReverb, mainFilter, mainPanner, mainSynth, mixerMasterVolume };
         this.isInitialized = true;
+        document.addEventListener('visibilitychange', this.handleVisibilityChange);
     }
+
+    private handleVisibilityChange = () => {
+        if (!this.isInitialized || typeof Tone === 'undefined') return;
+
+        // When the app comes back into view, if music is playing,
+        // we must reset the scheduler's clock to the current audio context time.
+        // This prevents it from trying to play a backlog of "missed" notes from when
+        // the app was backgrounded, which is the cause of the stuttering.
+        if (!document.hidden && this.isPlaying) {
+            this.scheduler.nextNoteTime = Tone.now() + 0.1;
+        }
+    };
 
     private buildPhiScale(base: number, steps = 14) {
         const arr = [];
@@ -55,9 +82,10 @@ class AudioService {
         return this.scheduler.phiScale[pos];
     }
 
-    public async start(mode: PlaybackMode, index: number) {
-        await this.init();
-        this.stop(false);
+    public startPlayback(mode: PlaybackMode, index: number) {
+        if (!this.isInitialized) return;
+        this.stopPlayback(false); // Stop previous track before starting a new one
+        this.isPlaying = true;
 
         const baseFreqData = mode === 'solfeggio' ? solfeggioFrequencies[index] : binauralBeats[index];
         const f0 = 'freq' in baseFreqData ? baseFreqData.freq : baseFreqData.baseFreq;
@@ -106,7 +134,8 @@ class AudioService {
         this.nodes.mainSynth.triggerAttackRelease(freq, dur * 0.95, time);
     }
 
-    public stop(stopAll = true) {
+    public stopPlayback(stopAll = true) {
+        this.isPlaying = false;
         if (this.scheduler.id) {
             clearInterval(this.scheduler.id);
             this.scheduler.id = null;
@@ -145,7 +174,8 @@ class AudioService {
     }
 
     public async toggleMixer(soundId: string): Promise<boolean> {
-        await this.init();
+        if (!this.isInitialized) await this.init(this.audioElement!);
+
         const sound = naturalSounds.find(s => s.id === soundId);
         if (!sound) return false;
 
