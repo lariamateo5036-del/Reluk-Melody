@@ -8,7 +8,14 @@ const PHI = (1 + Math.sqrt(5)) / 2;
 
 class AudioService {
     private nodes: any = {};
-    private scheduler: any = { id: null, nextNoteTime: 0, stepIndex: 0, tempo: 68 };
+    // Refactored scheduler to use Tone.Loop for robust, dynamic timing.
+    private scheduler: any = {
+        loop: null,
+        phiScale: [],
+        fibSequence: [],
+        stepIndex: 0,
+        tempo: 68
+    };
     private activeMixers: { [key: string]: { components: any[], volumeNode: any } } = {};
     private isInitialized = false;
     private audioElement: HTMLAudioElement | null = null;
@@ -44,20 +51,7 @@ class AudioService {
 
         this.nodes = { masterGain, mainReverb, mainFilter, mainPanner, mainSynth, mixerMasterVolume };
         this.isInitialized = true;
-        document.addEventListener('visibilitychange', this.handleVisibilityChange);
     }
-
-    private handleVisibilityChange = () => {
-        if (!this.isInitialized || typeof Tone === 'undefined') return;
-
-        // When the app comes back into view, if music is playing,
-        // we must reset the scheduler's clock to the current audio context time.
-        // This prevents it from trying to play a backlog of "missed" notes from when
-        // the app was backgrounded, which is the cause of the stuttering.
-        if (!document.hidden && this.isPlaying) {
-            this.scheduler.nextNoteTime = Tone.now() + 0.1;
-        }
-    };
 
     private buildPhiScale(base: number, steps = 14) {
         const arr = [];
@@ -93,7 +87,6 @@ class AudioService {
         this.scheduler.phiScale = this.buildPhiScale(f0, 14);
         this.scheduler.fibSequence = this.fibonacci(8);
         this.scheduler.stepIndex = 0;
-        this.scheduler.nextNoteTime = Tone.now() + 0.1;
 
         if (mode === 'binaural') {
             const { left_freq_hz, right_freq_hz } = (baseFreqData as BinauralBeat).synth_hint;
@@ -109,21 +102,28 @@ class AudioService {
             this.nodes.mainSynth.volume.value = -9;
         }
 
-        if (this.scheduler.id) clearInterval(this.scheduler.id);
-        this.scheduler.id = setInterval(() => this.schedulerTick(mode, index), 30);
-    }
-
-    private schedulerTick(mode: PlaybackMode, index: number) {
-        if (!this.isInitialized) return;
-        const spb = 60 / this.scheduler.tempo;
-        const ahead = 0.15, phiLens = [1, PHI / 2, 1 / PHI];
-        while (this.scheduler.nextNoteTime < Tone.now() + ahead) {
+        // Refactored scheduler using Tone.Loop for dynamic, resilient scheduling.
+        // This prevents a backlog of notes when resuming from background.
+        this.scheduler.loop = new Tone.Loop(time => {
+            const spb = 60 / this.scheduler.tempo;
+            const phiLens = [1, PHI / 2, 1 / PHI];
             const beats = phiLens[this.scheduler.stepIndex % phiLens.length];
-            const dur = beats * spb;
-            const f = this.nextFreq();
+            const duration = beats * spb;
+
+            const freq = this.nextFreq();
             const preset = mode === 'solfeggio' ? solfeggioFrequencies[index] : binauralBeats[index];
-            this.scheduleNote(this.scheduler.nextNoteTime, f, dur, preset);
-            this.scheduler.nextNoteTime += dur;
+            
+            this.scheduleNote(time, freq, duration, preset);
+            
+            // Update the interval for the next loop iteration. This dynamic interval
+            // is the key to handling variable note lengths correctly.
+            if (this.scheduler.loop) {
+                this.scheduler.loop.interval = duration;
+            }
+        }, 1).start(0.1); // Start with a default interval; it will be updated immediately.
+
+        if (Tone.Transport.state !== 'started') {
+            Tone.Transport.start();
         }
     }
     
@@ -136,10 +136,12 @@ class AudioService {
 
     public stopPlayback(stopAll = true) {
         this.isPlaying = false;
-        if (this.scheduler.id) {
-            clearInterval(this.scheduler.id);
-            this.scheduler.id = null;
+        
+        if (this.scheduler.loop) {
+            this.scheduler.loop.dispose();
+            this.scheduler.loop = null;
         }
+
         if (this.nodes.mainSynth) {
             this.nodes.mainSynth.releaseAll();
         }
@@ -192,7 +194,7 @@ class AudioService {
     public turnOffAllMixers() {
         Object.values(this.activeMixers).forEach(({ components }) => components.forEach(c => c.dispose()));
         this.activeMixers = {};
-        if (typeof Tone !== 'undefined' && Tone.Transport.state === 'started' && !this.scheduler.id) {
+        if (typeof Tone !== 'undefined' && Tone.Transport.state === 'started' && !this.isPlaying) {
              Tone.Transport.stop();
         }
     }
