@@ -20,7 +20,11 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ currentLanguage, on
           <h2 className="text-2xl font-bold">{T('goal_title')}</h2>
           <div className="flex items-center space-x-2">
             <InstallPWAButton installPrompt={installPrompt} currentLanguage={currentLanguage} />
-            <button onClick={onLanguageSelect} className="h-10 w-10 bg-white/10 rounded-full text-xl grid place-items-center flex-shrink-0">
+            <button 
+              onClick={onLanguageSelect} 
+              className="h-10 w-10 bg-white/10 rounded-full text-xl grid place-items-center flex-shrink-0"
+              aria-label={T('language_title')}
+            >
               {languages.find(l => l.code === currentLanguage)?.flag || '🇺🇸'}
             </button>
           </div>
@@ -31,6 +35,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ currentLanguage, on
             <button
               key={key}
               onClick={() => setSelectedGoal(key)}
+              aria-pressed={selectedGoal === key}
               className={`p-4 rounded-xl transition-all duration-200 text-center flex flex-col items-center justify-center min-h-[90px] ${selectedGoal === key ? 'bg-violet-500/30 border-violet-400' : 'bg-white/10 border-transparent'} border`}
             >
               <span className="text-3xl">{goals[key].icon}</span>

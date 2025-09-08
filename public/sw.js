@@ -23,6 +23,8 @@ const urlsToCache = [
   '/components/FeedbackModal.tsx',
   '/components/TypingBenefit.tsx',
   '/components/InstallPWAButton.tsx',
+  '/components/CoachingOverlay.tsx',
+  '/components/AriaLiveAnnouncer.tsx',
 
   // Fonts (Example: add your font files here in the future)
   // '/fonts/YourFont-Regular.woff2',

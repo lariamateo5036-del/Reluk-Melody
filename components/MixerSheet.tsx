@@ -25,6 +25,8 @@ const MixerSheet: React.FC<MixerSheetProps> = ({ currentLanguage, activeMixers, 
                             <button
                                 key={sound.id}
                                 onClick={() => onToggleMixer(sound.id)}
+                                aria-pressed={activeMixers.has(sound.id)}
+                                aria-label={sound.name[currentLanguage] || sound.name.en}
                                 className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors ${activeMixers.has(sound.id) ? 'bg-violet-600/70 text-white' : 'bg-gray-900/50'}`}
                             >
                                 <div className="h-6 w-6" dangerouslySetInnerHTML={{ __html: sound.icon }} />
@@ -44,7 +46,7 @@ const MixerSheet: React.FC<MixerSheetProps> = ({ currentLanguage, activeMixers, 
                             defaultValue="78"
                             onChange={e => onMainVolumeChange(parseInt(e.target.value, 10))}
                             className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-thumb"
-                            aria-label="Main volume"
+                            aria-label={T('main_volume')}
                         />
                     </div>
                     <div className="flex items-center gap-4">
@@ -56,7 +58,7 @@ const MixerSheet: React.FC<MixerSheetProps> = ({ currentLanguage, activeMixers, 
                             defaultValue="75"
                             onChange={e => onMasterVolumeChange(parseInt(e.target.value, 10))}
                             className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-thumb"
-                            aria-label="Background volume"
+                            aria-label={T('background_volume')}
                         />
                     </div>
                 </div>

@@ -25,8 +25,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, currentL
       text: T('share_message_text'),
     };
 
-    // The URL must be valid. In some sandboxed environments, window.location.href can be invalid.
-    // We use window.location.origin as a safer base URL and only include it if it's a valid HTTP/HTTPS URL.
     if (window.location.origin && window.location.origin.startsWith('http')) {
       shareData.url = window.location.origin;
     }
@@ -35,8 +33,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, currentL
       try {
         await navigator.share(shareData);
       } catch (err) {
-        // The user canceling the share dialog is a common action, not a bug.
-        // This action rejects the promise with an AbortError DOMException. We can safely ignore it.
         if (err instanceof DOMException && err.name === 'AbortError') {
           console.log('Share action was canceled by the user.');
         } else {
@@ -44,7 +40,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, currentL
         }
       }
     } else {
-      // Fallback for browsers that don't support Web Share API
       alert('Sharing is not supported on this browser.');
     }
     handleClose();
@@ -54,6 +49,9 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, currentL
     <div
       onClick={handleClose}
       className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[100] flex items-center justify-center p-4 transition-opacity duration-300"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="feedback-modal-title"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -61,7 +59,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, currentL
       >
         {step === 'initial' && (
           <>
-            <h3 className="text-2xl font-bold">{T('feedback_title')}</h3>
+            <h3 id="feedback-modal-title" className="text-2xl font-bold">{T('feedback_title')}</h3>
             <div className="w-full flex gap-4">
               <button
                 onClick={() => setStep('share')}
@@ -83,7 +81,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, currentL
 
         {step === 'share' && (
           <>
-            <h3 className="text-3xl font-bold">
+            <h3 id="feedback-modal-title" className="text-3xl font-bold">
                 <span role="img" aria-label="party popper" className="mr-2">🎉</span>
                 {T('feedback_thanks_title')}
             </h3>
