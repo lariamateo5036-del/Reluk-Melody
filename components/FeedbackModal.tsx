@@ -1,13 +1,22 @@
+// FIX: Replace styled HOC with a reference to nativewind types for NativeWind v4 compatibility.
+/// <reference types="nativewind/types" />
 import React, { useState } from 'react';
-import { translations } from '../constants';
+import { Modal, View as RNView, Text as RNText, TouchableOpacity as RNTouchableOpacity, Share } from 'react-native';
+import { translations, shareTemplates } from '../constants';
+
+// FIX: Replace styled HOC with direct component reference for NativeWind v4 compatibility.
+const View = RNView;
+const Text = RNText;
+const TouchableOpacity = RNTouchableOpacity;
 
 interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentLanguage: string;
+  currentTrack: any;
 }
 
-const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, currentLanguage }) => {
+const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, currentLanguage, currentTrack }) => {
   const [step, setStep] = useState<'initial' | 'share'>('initial');
   const T = (key: string) => translations[currentLanguage]?.[key] || translations.en[key];
 
@@ -15,95 +24,69 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, currentL
 
   const handleClose = () => {
     onClose();
-    // Reset step for next time it opens, with a delay for the animation
     setTimeout(() => setStep('initial'), 300);
   };
 
   const handleShare = async () => {
-    const shareData: { title: string; text: string; url?: string } = {
-      title: T('share_message_title'),
-      text: T('share_message_text'),
-    };
+    const goalKey = currentTrack?.goalKey;
+    const templateGroup = (goalKey && shareTemplates[goalKey]) ? shareTemplates[goalKey] : shareTemplates.generic;
+    const template = templateGroup[currentLanguage] || templateGroup.en;
+    
+    const url = 'https://ai.google.dev/edge/melody';
+    const message = template.text.replace('{url}', url);
 
-    if (window.location.origin && window.location.origin.startsWith('http')) {
-      shareData.url = window.location.origin;
-    }
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {
-          console.log('Share action was canceled by the user.');
-        } else {
-          console.error('Share failed:', err);
-        }
-      }
-    } else {
-      alert('Sharing is not supported on this browser.');
+    try {
+      await Share.share({
+        message: message,
+        title: template.title,
+        url: url, // For iOS
+      });
+    } catch (error) {
+      console.error('Share failed:', error);
     }
     handleClose();
   };
 
   return (
-    <div
-      onClick={handleClose}
-      className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[100] flex items-center justify-center p-4 transition-opacity duration-300"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="feedback-modal-title"
+    <Modal
+      transparent={true}
+      visible={isOpen}
+      onRequestClose={handleClose}
+      animationType="fade"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm bg-zinc-900/70 border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center space-y-6"
-      >
-        {step === 'initial' && (
-          <>
-            <h3 id="feedback-modal-title" className="text-2xl font-bold">{T('feedback_title')}</h3>
-            <div className="w-full flex gap-4">
-              <button
-                onClick={() => setStep('share')}
-                className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl font-semibold transition-colors"
-              >
-                <span role="img" aria-label="thumbs up" className="mr-2">👍</span>
-                {T('feedback_yes')}
-              </button>
-              <button
-                onClick={handleClose}
-                className="w-full bg-zinc-700 hover:bg-zinc-600 text-white py-3 rounded-xl font-semibold transition-colors"
-              >
-                <span role="img" aria-label="thumbs down" className="mr-2">👎</span>
-                {T('feedback_no')}
-              </button>
-            </div>
-          </>
-        )}
+      <TouchableOpacity onPress={handleClose} activeOpacity={1} className="flex-1 bg-black/80 justify-center items-center p-4">
+        <TouchableOpacity activeOpacity={1} className="w-full max-w-sm bg-zinc-900/70 border border-white/10 rounded-3xl p-8 items-center text-center space-y-6">
+          {step === 'initial' && (
+            <>
+              <Text className="text-2xl font-bold text-white text-center">{T('feedback_title')}</Text>
+              <View className="w-full flex-row gap-4">
+                <TouchableOpacity onPress={() => setStep('share')} className="flex-1 bg-violet-600 py-3 rounded-xl">
+                  <Text className="text-white font-semibold text-center">👍 {T('feedback_yes')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleClose} className="flex-1 bg-zinc-700 py-3 rounded-xl">
+                  <Text className="text-white font-semibold text-center">👎 {T('feedback_no')}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
-        {step === 'share' && (
-          <>
-            <h3 id="feedback-modal-title" className="text-3xl font-bold">
-                <span role="img" aria-label="party popper" className="mr-2">🎉</span>
-                {T('feedback_thanks_title')}
-            </h3>
-            <p className="text-gray-300">{T('feedback_share_prompt')}</p>
-            <div className="w-full flex flex-col gap-3">
-                 <button
-                    onClick={handleShare}
-                    className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl font-semibold transition-colors"
-                    >
-                    {T('feedback_share_button')}
-                </button>
-                <button
-                    onClick={handleClose}
-                    className="w-full text-violet-300 hover:text-white py-2 rounded-lg font-semibold transition-colors"
-                    >
-                    {T('feedback_close_button')}
-                </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+          {step === 'share' && (
+            <>
+              <Text className="text-3xl font-bold text-white text-center">🎉 {T('feedback_thanks_title')}</Text>
+              <Text className="text-gray-300 text-center">{T('feedback_share_prompt')}</Text>
+              <View className="w-full flex-col gap-3">
+                <TouchableOpacity onPress={handleShare} className="w-full bg-violet-600 py-3 rounded-xl">
+                  <Text className="text-white font-semibold text-center">{T('feedback_share_button')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleClose} className="w-full py-2 rounded-lg">
+                  <Text className="text-violet-300 font-semibold text-center">{T('feedback_close_button')}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
   );
 };
 

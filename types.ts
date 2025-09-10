@@ -62,3 +62,14 @@ export interface GoalsData {
 }
 
 export type PlaybackMode = 'solfeggio' | 'binaural';
+
+export interface ShareTemplate {
+  title: string;
+  text: string;
+}
+
+export interface ShareTemplates {
+  [key: string]: { // goalKey or 'generic'
+    [key: string]: ShareTemplate; // language code
+  };
+}

@@ -1,57 +1,64 @@
+// FIX: Replace styled HOC with a reference to nativewind types for NativeWind v4 compatibility.
+/// <reference types="nativewind/types" />
 import React, { useState } from 'react';
+import { View as RNView, Text as RNText, TouchableOpacity as RNTouchableOpacity, ScrollView as RNScrollView } from 'react-native';
 import { translations, languages, goals, goalTranslations } from '../constants';
-import InstallPWAButton from './InstallPWAButton';
+
+// FIX: Replace styled HOC with direct component reference for NativeWind v4 compatibility.
+const View = RNView;
+const Text = RNText;
+const TouchableOpacity = RNTouchableOpacity;
+const ScrollView = RNScrollView;
 
 interface OnboardingScreenProps {
   currentLanguage: string;
   onLanguageSelect: () => void;
   onStart: (goal: string) => void;
-  installPrompt: any;
 }
 
-const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ currentLanguage, onLanguageSelect, onStart, installPrompt }) => {
+const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ currentLanguage, onLanguageSelect, onStart }) => {
   const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
   const T = (key: string) => translations[currentLanguage]?.[key] || translations.en[key];
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[100] flex items-center justify-center p-4 transition-opacity duration-300">
-      <div className="w-full max-w-md bg-zinc-900/70 border border-white/10 rounded-3xl p-6 flex flex-col max-h-[90vh]">
-        <div className="flex justify-between items-center mb-4 flex-shrink-0">
-          <h2 className="text-2xl font-bold">{T('goal_title')}</h2>
-          <div className="flex items-center space-x-2">
-            <InstallPWAButton installPrompt={installPrompt} currentLanguage={currentLanguage} />
-            <button 
-              onClick={onLanguageSelect} 
-              className="h-10 w-10 bg-white/10 rounded-full text-xl grid place-items-center flex-shrink-0"
-              aria-label={T('language_title')}
-            >
-              {languages.find(l => l.code === currentLanguage)?.flag || '🇺🇸'}
-            </button>
-          </div>
-        </div>
-        <p className="text-gray-300 mb-6 flex-shrink-0">{T('goal_subtitle')}</p>
-        <div className="selection-grid grid grid-cols-2 sm:grid-cols-3 gap-4 overflow-y-auto pr-2">
-          {Object.entries(goalTranslations[currentLanguage]).map(([key, name]) => (
-            <button
-              key={key}
-              onClick={() => setSelectedGoal(key)}
-              aria-pressed={selectedGoal === key}
-              className={`p-4 rounded-xl transition-all duration-200 text-center flex flex-col items-center justify-center min-h-[90px] ${selectedGoal === key ? 'bg-violet-500/30 border-violet-400' : 'bg-white/10 border-transparent'} border`}
-            >
-              <span className="text-3xl">{goals[key].icon}</span>
-              <span className="block text-sm mt-2 font-semibold">{name as React.ReactNode}</span>
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => selectedGoal && onStart(selectedGoal)}
+    <View className="absolute inset-0 bg-black/80 justify-center items-center p-4 z-[100]">
+      <View className="w-full max-w-md bg-zinc-900/70 border border-white/10 rounded-3xl p-6 h-[90vh]">
+        <View className="flex-row justify-between items-center mb-4 flex-shrink-0">
+          <Text className="text-2xl font-bold text-white">{T('goal_title')}</Text>
+          <TouchableOpacity 
+            onPress={onLanguageSelect} 
+            className="h-10 w-10 bg-white/10 rounded-full justify-center items-center flex-shrink-0"
+            accessibilityLabel={T('language_title')}
+          >
+            <Text className="text-xl">{languages.find(l => l.code === currentLanguage)?.flag || '🇺🇸'}</Text>
+          </TouchableOpacity>
+        </View>
+        <Text className="text-gray-300 mb-6 flex-shrink-0">{T('goal_subtitle')}</Text>
+        <ScrollView className="flex-1">
+            <View className="flex-row flex-wrap justify-between">
+            {Object.entries(goalTranslations[currentLanguage]).map(([key, name]) => (
+                <View key={key} className="w-[48%] mb-4">
+                    <TouchableOpacity
+                        onPress={() => setSelectedGoal(key)}
+                        aria-selected={selectedGoal === key}
+                        className={`p-4 rounded-xl transition-all duration-200 items-center justify-center min-h-[90px] ${selectedGoal === key ? 'bg-violet-500/30 border-violet-400' : 'bg-white/10 border-transparent'} border`}
+                        >
+                        <Text className="text-3xl">{goals[key].icon}</Text>
+                        <Text className="block text-sm mt-2 font-semibold text-white text-center">{name as React.ReactNode}</Text>
+                    </TouchableOpacity>
+                </View>
+            ))}
+            </View>
+        </ScrollView>
+        <TouchableOpacity
+          onPress={() => selectedGoal && onStart(selectedGoal)}
           disabled={!selectedGoal}
-          className="w-full bg-violet-500 text-white py-3 rounded-lg mt-6 font-semibold flex-shrink-0 disabled:bg-violet-500/50 disabled:cursor-not-allowed"
+          className={`w-full py-3 rounded-lg mt-6 flex-shrink-0 ${!selectedGoal ? 'bg-violet-500/50' : 'bg-violet-500'}`}
         >
-          {T('start_btn')}
-        </button>
-      </div>
-    </div>
+          <Text className="text-white font-semibold text-center">{T('start_btn')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 

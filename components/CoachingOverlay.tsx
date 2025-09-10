@@ -1,4 +1,12 @@
+// FIX: Replace styled HOC with a reference to nativewind types for NativeWind v4 compatibility.
+/// <reference types="nativewind/types" />
 import React, { useState, useEffect } from 'react';
+import { View as RNView, Text as RNText, Animated } from 'react-native';
+
+// FIX: Replace styled HOC with direct component reference for NativeWind v4 compatibility.
+const AnimatedView = Animated.View;
+const View = RNView;
+const Text = RNText;
 
 interface CoachingOverlayProps {
   scriptLines?: string[];
@@ -7,22 +15,36 @@ interface CoachingOverlayProps {
 
 const CoachingOverlay: React.FC<CoachingOverlayProps> = ({ scriptLines, isVisible }) => {
   const [lineIndex, setLineIndex] = useState(0);
-  const [isTextVisible, setIsTextVisible] = useState(true);
+  const fadeAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
-    // Reset index when the script changes (e.g., user changes track)
     setLineIndex(0);
   }, [scriptLines]);
 
   useEffect(() => {
+    if (isVisible) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isVisible]);
+
+  useEffect(() => {
     if (isVisible && scriptLines && scriptLines.length > 0) {
       const interval = setInterval(() => {
-        setIsTextVisible(false); // Start fade out
-        setTimeout(() => {
+        Animated.timing(fadeAnim, { toValue: 0, duration: 500, useNativeDriver: true }).start(() => {
           setLineIndex(prevIndex => (prevIndex + 1) % scriptLines.length);
-          setIsTextVisible(true); // Start fade in with new text
-        }, 500); // Wait for fade out to complete
-      }, 8000); // Time each line is displayed + fade time
+          Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+        });
+      }, 8000);
 
       return () => clearInterval(interval);
     }
@@ -33,21 +55,17 @@ const CoachingOverlay: React.FC<CoachingOverlayProps> = ({ scriptLines, isVisibl
   }
 
   return (
-    <div
-      className={`fixed top-0 left-0 right-0 p-4 flex justify-center transition-opacity duration-500 z-[5] ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-      style={{ paddingTop: 'calc(2rem + env(safe-area-inset-top))' }}
-      aria-live="polite"
-      aria-atomic="true"
+    <AnimatedView
+      className="absolute top-16 left-0 right-0 p-4 items-center z-[5]"
+      style={{ opacity: fadeAnim }}
+      pointerEvents={isVisible ? 'auto' : 'none'}
     >
-      <div
-        className="max-w-2xl bg-zinc-900/50 backdrop-blur-2xl rounded-2xl px-6 py-3 transition-opacity duration-500 ease-in-out"
-        style={{ opacity: isTextVisible ? 1 : 0 }}
-      >
-        <p className="text-base md:text-lg text-white/90 drop-shadow-lg text-center">
+      <View className="max-w-md bg-zinc-900/50 rounded-2xl px-6 py-3">
+        <Text className="text-base md:text-lg text-white/90 text-center">
           {scriptLines[lineIndex]}
-        </p>
-      </div>
-    </div>
+        </Text>
+      </View>
+    </AnimatedView>
   );
 };
 

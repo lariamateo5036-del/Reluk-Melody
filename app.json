@@ -1,0 +1,41 @@
+
+{
+  "expo": {
+    "name": "Relaxing Melody",
+    "slug": "relaxing-melody-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.google.dev.relaxingmelody",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
+      "package": "com.google.dev.relaxingmelody"
+    },
+    "plugins": [
+        ["expo-av", {
+            "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone.",
+            "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+        }]
+    ]
+  }
+}
